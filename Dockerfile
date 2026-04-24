@@ -4,17 +4,43 @@ ENV DEBIAN_FRONTEND=noninteractive
 
 # 기본 도구 + C/C++
 RUN apt-get update && apt-get install -y \
-    curl git wget vim sudo \
+    curl git wget sudo \
     build-essential gcc g++ gdb make cmake \
     locales \
-    # 유틸리티
-    jq tree tmux unzip zip \
-    ripgrep fzf httpie sqlite3 \
     && locale-gen ko_KR.UTF-8 \
     && rm -rf /var/lib/apt/lists/*
 
 ENV LANG=ko_KR.UTF-8
 ENV LC_ALL=ko_KR.UTF-8
+
+# 유틸리티
+RUN apt-get update && apt-get install -y \
+    jq tree tmux unzip zip \
+    ripgrep fzf sqlite3 \
+    bc lsof rsync strace \
+    htop plocate \
+    nano vim \
+    && rm -rf /var/lib/apt/lists/*
+
+# 네트워크 도구
+RUN apt-get update && apt-get install -y \
+    iputils-ping traceroute \
+    net-tools iproute2 \
+    netcat-openbsd dnsutils \
+    ufw \
+    openssh-client \
+    && rm -rf /var/lib/apt/lists/*
+
+# zsh + 플러그인
+RUN apt-get update && apt-get install -y \
+    zsh zsh-autosuggestions zsh-syntax-highlighting \
+    && rm -rf /var/lib/apt/lists/*
+
+# 한글 폰트 + 폰트 도구
+RUN apt-get update && apt-get install -y \
+    fonts-noto-cjk fontconfig \
+    && fc-cache -fv \
+    && rm -rf /var/lib/apt/lists/*
 
 # Python
 RUN apt-get update && apt-get install -y \
@@ -42,9 +68,7 @@ RUN curl -fsSL https://cli.github.com/packages/githubcli-archive-keyring.gpg \
     && apt-get update && apt-get install -y gh \
     && rm -rf /var/lib/apt/lists/*
 
-# Cloudflare Wrangler (Pages & Workers CLI)
-# Claude Code
-# OpenAI Codex
+# Cloudflare Wrangler / Claude Code / OpenAI Codex
 RUN npm install -g \
     wrangler \
     @anthropic-ai/claude-code \
@@ -53,13 +77,37 @@ RUN npm install -g \
 # code-server
 RUN curl -fsSL https://code-server.dev/install.sh | sh
 
+# ubuntu → coder (UID 1000 유지)
 RUN usermod -l coder ubuntu \
     && usermod -d /home/coder -m coder \
     && groupmod -n coder ubuntu \
+    && usermod -s /bin/zsh coder \
     && echo "coder ALL=(ALL) NOPASSWD:ALL" >> /etc/sudoers
 
-# apt-save 명령어 등록 (설치 목록을 홈 볼륨에 저장)
-RUN echo '\n# apt 패키지 목록 저장\nalias apt-save='"'"'dpkg --get-selections | grep -v deinstall | awk "{print \$1}" > ~/.apt-packages.txt && echo "[apt-save] $(wc -l < ~/.apt-packages.txt) packages saved to ~/.apt-packages.txt"'"'" >> /etc/skel/.bashrc
+# oh-my-zsh 설치 (coder 홈에)
+RUN su -c 'sh -c "$(curl -fsSL https://raw.githubusercontent.com/ohmyzsh/ohmyzsh/master/tools/install.sh)" "" --unattended' coder
+
+# zsh 플러그인 + alias 설정 (.zshrc에 추가)
+RUN printf '\n\
+# zsh 플러그인\n\
+source /usr/share/zsh-autosuggestions/zsh-autosuggestions.zsh\n\
+source /usr/share/zsh-syntax-highlighting/zsh-syntax-highlighting.zsh\n\
+\n\
+# apt 패키지 목록 저장\n\
+alias apt-save='"'"'dpkg --get-selections | grep -v deinstall | awk "{print $1}" > ~/.apt-packages.txt && echo "[apt-save] saved"'"'"'\n\
+\n\
+# 편의 alias\n\
+alias ll="ls -alF"\n\
+alias la="ls -A"\n\
+alias ..="cd .."\n\
+alias ...="cd ../.."\n\
+' >> /home/coder/.zshrc
+
+# apt-save alias를 bash에도 추가
+RUN echo '\nalias apt-save='"'"'dpkg --get-selections | grep -v deinstall | awk "{print \$1}" > ~/.apt-packages.txt && echo "[apt-save] $(wc -l < ~/.apt-packages.txt) packages saved"'"'" >> /etc/skel/.bashrc
+
+# locate DB 초기 생성
+RUN updatedb || true
 
 # 첫 실행 초기화용 기본 홈 스켈레톤 저장
 RUN cp -rp /home/coder /home/coder-skel
