@@ -5,22 +5,22 @@ import os
 PROFILES_FILE = "profiles.yml"
 COMPOSE_FILE = "docker-compose.yml"
 DATA_DIR = "data"
-NGINX_CONF = "nginx/conf.d/simplyimg.conf"
-DOMAIN = "simplyimg.com"
+NGINX_CONF_DIR = "nginx/conf.d"
+BASE_DOMAIN = "simplyimg.com"
 
-NGINX_TEMPLATE = """\
+NGINX_VHOST_TEMPLATE = """\
 server {{
     listen 80;
-    server_name {domain};
+    server_name {subdomain};
     return 301 https://$host$request_uri;
 }}
 
 server {{
     listen 443 ssl;
-    server_name {domain};
+    server_name {subdomain};
 
-    ssl_certificate     /etc/letsencrypt/live/{domain}/fullchain.pem;
-    ssl_certificate_key /etc/letsencrypt/live/{domain}/privkey.pem;
+    ssl_certificate     /etc/ssl/cloudflare/simplyimg.com.pem;
+    ssl_certificate_key /etc/ssl/cloudflare/simplyimg.com.key;
     ssl_protocols       TLSv1.2 TLSv1.3;
     ssl_ciphers         HIGH:!aNULL:!MD5;
 
@@ -33,14 +33,10 @@ server {{
     proxy_set_header X-Forwarded-Proto $scheme;
     proxy_read_timeout 86400;
 
-{locations}}}
-"""
-
-LOCATION_BLOCK = """\
-    location /{name}/ {{
-        proxy_pass http://vscode-{name}:8080/{name}/;
+    location / {{
+        proxy_pass http://vscode-{name}:8080/;
     }}
-
+}}
 """
 
 
@@ -63,7 +59,7 @@ def generate_compose(profiles):
             "ports": ["80:80", "443:443"],
             "volumes": [
                 "./nginx/conf.d:/etc/nginx/conf.d:ro",
-                "/etc/letsencrypt:/etc/letsencrypt:ro",
+                "/etc/ssl/cloudflare:/etc/ssl/cloudflare:ro",
             ],
             "networks": ["vscode-net"],
             "restart": "unless-stopped",
@@ -84,6 +80,8 @@ def generate_compose(profiles):
             "volumes": [f"./data/{name}:/home/coder"],
             "networks": ["vscode-net"],
             "restart": "unless-stopped",
+            "mem_limit": "4g",
+            "mem_reservation": "256m",
         }
 
     compose = {
@@ -97,18 +95,21 @@ def generate_compose(profiles):
 
 
 def generate_nginx(profiles):
-    os.makedirs(os.path.dirname(NGINX_CONF), exist_ok=True)
-    locations = "".join(LOCATION_BLOCK.format(name=p["name"]) for p in profiles)
-    config = NGINX_TEMPLATE.format(domain=DOMAIN, locations=locations)
-    with open(NGINX_CONF, "w") as f:
-        f.write(config)
-    print(f"[+] {NGINX_CONF} generated")
+    os.makedirs(NGINX_CONF_DIR, exist_ok=True)
+    for p in profiles:
+        name = p["name"]
+        subdomain = f"{name}.{BASE_DOMAIN}"
+        config = NGINX_VHOST_TEMPLATE.format(name=name, subdomain=subdomain)
+        out_path = os.path.join(NGINX_CONF_DIR, f"{name}.conf")
+        with open(out_path, "w") as f:
+            f.write(config)
+    print(f"[+] nginx/conf.d/ generated ({len(profiles)} vhosts)")
 
 
 def print_summary(profiles):
     print(f"\n{'─'*50}")
     for p in profiles:
-        print(f"  {p['name']:12s}  https://{DOMAIN}/{p['name']}/")
+        print(f"  {p['name']:12s}  https://{p['name']}.{BASE_DOMAIN}/")
     print(f"{'─'*50}\n")
 
 

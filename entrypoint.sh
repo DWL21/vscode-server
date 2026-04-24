@@ -8,8 +8,28 @@ if [ ! -f ~/.initialized ]; then
     touch ~/.initialized
 fi
 
+# 현재 추가 설치된 패키지 목록 스냅샷 (이미지 기본 패키지 제외)
+IMAGE_PACKAGES=/home/coder-skel/.image-packages.txt
+SAVED_PACKAGES=~/.apt-packages.txt
+
+if [ -f "$SAVED_PACKAGES" ]; then
+    MISSING=$(comm -23 \
+        <(sort "$SAVED_PACKAGES") \
+        <(sudo dpkg --get-selections 2>/dev/null | grep -v deinstall | awk '{print $1}' | sort))
+    if [ -n "$MISSING" ]; then
+        echo ""
+        echo "┌─────────────────────────────────────────────┐"
+        echo "│  [!] 재빌드로 인해 누락된 apt 패키지:        │"
+        echo "├─────────────────────────────────────────────┤"
+        echo "$MISSING" | sed 's/^/│  /'
+        echo "├─────────────────────────────────────────────┤"
+        echo "│  sudo apt install \$(cat ~/.apt-packages.txt | tr '\\n' ' ')"
+        echo "└─────────────────────────────────────────────┘"
+        echo ""
+    fi
+fi
+
 exec code-server \
     --bind-addr 0.0.0.0:8080 \
     --auth password \
-    --base-path "/${USERNAME}" \
     ~/workspace

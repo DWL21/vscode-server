@@ -29,8 +29,8 @@ RUN apt-get update && apt-get install -y \
 ENV JAVA_HOME=/usr/lib/jvm/java-21-openjdk-amd64
 ENV PATH="${JAVA_HOME}/bin:${PATH}"
 
-# Node.js 20 LTS (npm, npx 포함)
-RUN curl -fsSL https://deb.nodesource.com/setup_20.x | bash - \
+# Node.js 22 LTS (npm, npx 포함)
+RUN curl -fsSL https://deb.nodesource.com/setup_22.x | bash - \
     && apt-get install -y nodejs \
     && rm -rf /var/lib/apt/lists/*
 
@@ -53,8 +53,13 @@ RUN npm install -g \
 # code-server
 RUN curl -fsSL https://code-server.dev/install.sh | sh
 
-RUN useradd -m -u 1000 -s /bin/bash coder \
+RUN usermod -l coder ubuntu \
+    && usermod -d /home/coder -m coder \
+    && groupmod -n coder ubuntu \
     && echo "coder ALL=(ALL) NOPASSWD:ALL" >> /etc/sudoers
+
+# apt-save 명령어 등록 (설치 목록을 홈 볼륨에 저장)
+RUN echo '\n# apt 패키지 목록 저장\nalias apt-save='"'"'dpkg --get-selections | grep -v deinstall | awk "{print \$1}" > ~/.apt-packages.txt && echo "[apt-save] $(wc -l < ~/.apt-packages.txt) packages saved to ~/.apt-packages.txt"'"'" >> /etc/skel/.bashrc
 
 # 첫 실행 초기화용 기본 홈 스켈레톤 저장
 RUN cp -rp /home/coder /home/coder-skel

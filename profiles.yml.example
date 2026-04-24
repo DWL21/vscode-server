@@ -1,5 +1,5 @@
 profiles:
-  - name: alice
-    password: "changeme_alice"
-  - name: bob
-    password: "changeme_bob"
+  - name: alpha
+    password: "changeme_alpha"
+  - name: beta
+    password: "changeme_beta"

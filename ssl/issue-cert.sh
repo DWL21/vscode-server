@@ -8,9 +8,10 @@
 
 set -e
 
-DOMAIN="simplyimg.com"
+BASE_DOMAIN="simplyimg.com"
 EMAIL="nggus5@gmail.com"
 CF_CREDENTIALS="/etc/letsencrypt/cloudflare.ini"
+PROFILES_FILE="$(dirname "$0")/../profiles.yml"
 
 if [ ! -f "$CF_CREDENTIALS" ]; then
     echo "[!] Cloudflare credentials not found at $CF_CREDENTIALS"
@@ -20,15 +21,27 @@ if [ ! -f "$CF_CREDENTIALS" ]; then
     exit 1
 fi
 
-echo "[+] Issuing certificate for ${DOMAIN}..."
-sudo certbot certonly \
-    --dns-cloudflare \
-    --dns-cloudflare-credentials "$CF_CREDENTIALS" \
-    -d "${DOMAIN}" \
-    --email "$EMAIL" \
-    --agree-tos \
-    --non-interactive
+# profiles.yml에서 이름 목록 추출
+NAMES=$(python3 -c "
+import yaml, sys
+with open('$PROFILES_FILE') as f:
+    profiles = yaml.safe_load(f)['profiles']
+print('\n'.join(p['name'] for p in profiles))
+")
+
+for NAME in $NAMES; do
+    SUBDOMAIN="${NAME}.${BASE_DOMAIN}"
+    echo "[+] Issuing certificate for ${SUBDOMAIN}..."
+    sudo certbot certonly \
+        --dns-cloudflare \
+        --dns-cloudflare-credentials "$CF_CREDENTIALS" \
+        -d "$SUBDOMAIN" \
+        --email "$EMAIL" \
+        --agree-tos \
+        --non-interactive
+    echo "[+] Done: ${SUBDOMAIN}"
+done
 
 echo ""
-echo "[+] Done. Reload nginx inside Docker:"
-echo "    docker compose exec nginx nginx -s reload"
+echo "Reload nginx:"
+echo "  docker compose exec nginx nginx -s reload"
