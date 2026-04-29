@@ -112,10 +112,8 @@ RUN updatedb || true
 # tmux 공유 세션 — 터미널 열면 자동 접속
 RUN printf '\n# tmux 공유 세션\n\
 tmux new-session -A -s shared\n\
-alias q="tmux detach"\n\
-\n\
-# 컨테이너별 환영 메시지\n\
-echo "Welcome to $USERNAME"\n' >> /home/coder/.zshrc
+alias q="tmux detach"\n' >> /home/coder/.zshrc
+
 
 RUN printf 'set -g mouse on\n\
 set -g status on\n' > /home/coder/.tmux.conf
