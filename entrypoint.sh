@@ -8,6 +8,15 @@ if [ ! -f ~/.initialized ]; then
     touch ~/.initialized
 fi
 
+# code-server 비밀번호를 환경변수에서 덮어쓰기
+mkdir -p ~/.config/code-server
+cat > ~/.config/code-server/config.yaml <<EOF
+bind-addr: 127.0.0.1:8080
+auth: password
+password: ${PASSWORD}
+cert: false
+EOF
+
 # 현재 추가 설치된 패키지 목록 스냅샷 (이미지 기본 패키지 제외)
 IMAGE_PACKAGES=/home/coder-skel/.image-packages.txt
 SAVED_PACKAGES=~/.apt-packages.txt
