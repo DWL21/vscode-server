@@ -112,7 +112,8 @@ RUN updatedb || true
 # tmux 공유 세션 — 터미널 열면 자동 접속
 RUN printf '\n# tmux 공유 세션\n\
 tmux new-session -A -s shared\n\
-alias q="tmux detach"\n' >> /home/coder/.zshrc
+alias q="tmux detach"\n\
+	alias treset='"'"'tmux kill-session -t shared 2>/dev/null; tmux new-session -A -s shared'"'"'\n' >> /home/coder/.zshrc
 
 
 RUN printf 'set -g mouse on\n\

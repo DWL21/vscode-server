@@ -72,6 +72,7 @@ def generate_compose(profiles):
         services[name] = {
             "build": ".",
             "container_name": f"vscode-{name}",
+            "hostname": name,
             "user": "1000:1000",
             "environment": {
                 "PASSWORD": p["password"],
