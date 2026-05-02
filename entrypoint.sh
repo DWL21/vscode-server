@@ -8,10 +8,10 @@ if [ ! -f ~/.initialized ]; then
     touch ~/.initialized
 fi
 
-# code-server 비밀번호를 환경변수에서 덮어쓰기
+# code-server 설정 — 반드시 0.0.0.0:8080 이어야 nginx가 접근 가능
 mkdir -p ~/.config/code-server
 cat > ~/.config/code-server/config.yaml <<EOF
-bind-addr: 127.0.0.1:8080
+bind-addr: 0.0.0.0:8080
 auth: password
 password: ${PASSWORD}
 cert: false
@@ -38,7 +38,4 @@ if [ -f "$SAVED_PACKAGES" ]; then
     fi
 fi
 
-exec code-server \
-    --bind-addr 0.0.0.0:8080 \
-    --auth password \
-    ~/workspace
+exec code-server ~/workspace

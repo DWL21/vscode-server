@@ -24,9 +24,12 @@ server {{
     ssl_protocols       TLSv1.2 TLSv1.3;
     ssl_ciphers         HIGH:!aNULL:!MD5;
 
+    # Docker embedded DNS — 컨테이너 재생성 시 IP 변경을 자동 반영
+    resolver 127.0.0.11 valid=10s ipv6=off;
+
     proxy_http_version 1.1;
     proxy_set_header Upgrade $http_upgrade;
-    proxy_set_header Connection "upgrade";
+    proxy_set_header Connection $connection_upgrade;
     proxy_set_header Host $host;
     proxy_set_header X-Real-IP $remote_addr;
     proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
@@ -34,7 +37,8 @@ server {{
     proxy_read_timeout 86400;
 
     location / {{
-        proxy_pass http://vscode-{name}:8080/;
+        set $upstream vscode-{name};
+        proxy_pass http://$upstream:8080;
     }}
 }}
 """
@@ -49,6 +53,10 @@ def ensure_data_dirs(profiles):
     for p in profiles:
         path = os.path.join(DATA_DIR, p["name"])
         os.makedirs(path, mode=0o755, exist_ok=True)
+        try:
+            os.chown(path, 1000, 1000)
+        except PermissionError:
+            print(f"[!] Cannot chown {path} — run as root or sudo if containers fail to start")
     print("[+] data/ directories ready")
 
 
@@ -95,8 +103,21 @@ def generate_compose(profiles):
     print(f"[+] {COMPOSE_FILE} generated ({len(profiles)} user(s))")
 
 
+NGINX_MAP_CONF = """\
+map $http_upgrade $connection_upgrade {
+    default upgrade;
+    ''      close;
+}
+"""
+
+
 def generate_nginx(profiles):
     os.makedirs(NGINX_CONF_DIR, exist_ok=True)
+
+    map_path = os.path.join(NGINX_CONF_DIR, "00-map.conf")
+    with open(map_path, "w") as f:
+        f.write(NGINX_MAP_CONF)
+
     for p in profiles:
         name = p["name"]
         subdomain = f"{name}.{BASE_DOMAIN}"

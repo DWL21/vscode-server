@@ -77,6 +77,14 @@ RUN npm install -g \
 # code-server
 RUN curl -fsSL https://code-server.dev/install.sh | sh
 
+# 로그인 rate limit 완화: 분당 20회, 시간당 200회
+RUN sed -i \
+    's/tokensPerInterval: 2, interval: "minute"/tokensPerInterval: 20, interval: "minute"/' \
+    /usr/lib/code-server/out/node/routes/login.js \
+  && sed -i \
+    's/tokensPerInterval: 12, interval: "hour"/tokensPerInterval: 200, interval: "hour"/' \
+    /usr/lib/code-server/out/node/routes/login.js
+
 # ubuntu → coder (UID 1000 유지)
 RUN usermod -l coder ubuntu \
     && usermod -d /home/coder -m coder \
